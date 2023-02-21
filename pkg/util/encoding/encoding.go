@@ -1906,6 +1906,27 @@ func getArrayOrJSONLength(buf []byte, dir Direction, isJSON bool) (int, error) {
 	return result, nil
 }
 
+// getJSONLength returns the length of a key encoded JSON.
+// The input must have had the type marker stripped from the front.
+func getJSONLength(buf []byte, dir Direction) (int, error) {
+	result := 0
+	for {
+		if IsJSONKeyDone(buf, dir) {
+			// Increment to include the terminator byte.
+			result++
+			break
+		}
+		next, err := PeekLength(buf)
+		if err != nil {
+			return 0, err
+		}
+		// Shift buf over by the encoded data amount.
+		buf = buf[next:]
+		result += next
+	}
+	return result, nil
+}
+
 // peekBox2DLength peeks to look at the length of a box2d encoding.
 func peekBox2DLength(b []byte) (int, error) {
 	length := 0
@@ -1987,7 +2008,7 @@ func PeekLength(b []byte) (int, error) {
 			return -1, errors.AssertionFailedf("failed to get the number of elements" +
 				"in the container")
 		}
-		length, err := getArrayOrJSONLength(b[numberElems:], dir, true)
+		length, err := getJSONLength(b[numberElems:], dir)
 		return 1 + numberElems + length, err
 	case arrayKeyMarker, arrayKeyDescendingMarker:
 		dir := Ascending
